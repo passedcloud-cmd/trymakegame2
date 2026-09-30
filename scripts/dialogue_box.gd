@@ -20,12 +20,25 @@ const VOICE_PITCH := {
 	"표지판": 1.0,
 }
 
+## 대화창 위에 나오는 캐릭터 초상화예요. 여기에 없는 이름(표지판, 문)은 초상화 없이 나와요.
+## 그림은 80×96 크기 3칸(보통 / 눈 감음 / 입 벌림)이에요. 같은 이름으로 덮어쓰면 바뀌어요.
+const PORTRAITS := {
+	"촌장 할아버지": preload("res://assets/portraits/elder.png"),
+	"대장장이 브론": preload("res://assets/portraits/smith.png"),
+	"약초상 리나": preload("res://assets/portraits/herbalist.png"),
+	"꼬마 피피": preload("res://assets/portraits/kid.png"),
+}
+const PORTRAIT_NORMAL := 0
+const PORTRAIT_BLINK := 1
+const PORTRAIT_TALK := 2
+
 @onready var name_panel: Panel = $NamePanel
 @onready var name_label: Label = $NamePanel/NameLabel
 @onready var choice_panel: Panel = $ChoicePanel
 @onready var choice_label: Label = $ChoicePanel/ChoiceLabel
 @onready var text_label: Label = $Panel/TextLabel
 @onready var next_arrow: Label = $Panel/NextArrow
+@onready var portrait: Sprite2D = $Portrait
 
 ## 대화창이 열려 있는지 알려줘요. (열려 있으면 기사가 못 움직여요)
 var is_open := false
@@ -42,6 +55,7 @@ var arrow_time := 0.0
 var choices: Array = []
 var choice_index := 0
 var voice_pitch := 1.0
+var portrait_time := 0.0
 
 
 ## 대화나 연출 중이라 모두 멈춰야 하면 true를 돌려줘요.
@@ -65,6 +79,9 @@ func start(speaker: String, new_lines: Array) -> void:
 	choices = []
 	name_label.text = speaker
 	voice_pitch = VOICE_PITCH.get(speaker, 1.0)
+	portrait.texture = PORTRAITS.get(speaker)
+	portrait.visible = portrait.texture != null
+	portrait_time = 0.0
 	# 이름 길이에 맞춰 이름표 너비를 바꿔요.
 	name_panel.size.x = text_width(name_label, speaker) + 12
 	is_open = true
@@ -141,6 +158,8 @@ func _process(delta: float) -> void:
 	if not is_open:
 		return
 
+	update_portrait(delta)
+
 	if is_typing():
 		# 타자 치듯 글자를 조금씩 늘려요.
 		shown_chars += chars_per_second * delta
@@ -160,6 +179,17 @@ func _process(delta: float) -> void:
 			return
 		arrow_time += delta
 		next_arrow.visible = int(arrow_time * 2.0) % 2 == 0
+
+
+# 글자가 나오는 동안은 입을 뻐끔뻐끔, 다 나오면 가끔 눈을 깜빡여요.
+func update_portrait(delta: float) -> void:
+	portrait_time += delta
+	if is_typing():
+		portrait.frame = PORTRAIT_TALK if int(portrait_time * 8.0) % 2 == 0 else PORTRAIT_NORMAL
+	elif fmod(portrait_time, 3.0) > 2.85:
+		portrait.frame = PORTRAIT_BLINK
+	else:
+		portrait.frame = PORTRAIT_NORMAL
 
 
 func _unhandled_input(event: InputEvent) -> void:

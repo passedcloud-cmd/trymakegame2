@@ -435,6 +435,196 @@ def make_villagers():
 
 
 # ══════════════════════════════════════════════════════
+# 🖼️ 대화창 초상화 (80×96, 3장: 보통 / 눈 감음 / 입 벌림)
+#   대화창 위에 크게 나오는 얼굴 그림이에요. 오른쪽(대사 쪽)을 보고 있어요.
+#   assets/portraits/ 폴더에 저장돼요.
+# ══════════════════════════════════════════════════════
+PW, PH = 80, 96
+
+
+def shade(color, amount):
+    """색을 어둡게(amount < 0) 하거나 밝게(amount > 0) 해요."""
+    r, g, b, a = color
+    f = lambda c: max(0, min(255, int(c + amount)))
+    return (f(r), f(g), f(b), a)
+
+
+def portrait(skin, body, face_y=0, head=(20, 14, 62, 60), eye_y=38, eye_x=(34, 48), eye_h=5,
+             back=None, clothes=None, front=None, mouth_y=51, brows=None):
+    """초상화 3장을 만들어요.
+    back: 머리 뒤에 그릴 것 (긴 머리카락 등), clothes: 옷 위 장식, front: 얼굴 위에 그릴 것 (모자, 수염 등)
+    """
+    frames = []
+    for kind in ("normal", "blink", "talk"):
+        img = new(PW, PH)
+        d = ImageDraw.Draw(img)
+        hx0, hy0, hx1, hy1 = head
+        hy0 += face_y
+        hy1 += face_y
+        if back:
+            back(d, img, face_y)
+        # 어깨와 몸 (아래쪽은 화면 밖으로 잘려요)
+        d.rounded_rectangle((6, 70 + face_y // 2, 73, PH + 10), radius=16, fill=body)
+        d.rounded_rectangle((6, 70 + face_y // 2, 20, PH + 10), radius=10, fill=shade(body, -28))
+        # 목
+        rect(d, 36, hy1 - 6, 12, 12, shade(skin, -30))
+        if clothes:
+            clothes(d, img, face_y)
+        # 얼굴 (빛이 오른쪽에서 와서 왼쪽이 조금 어두워요)
+        ellipse(d, (hx0, hy0, hx1, hy1), shade(skin, -22))
+        ellipse(d, (hx0 + 4, hy0, hx1, hy1 - 2), skin)
+        # 귀
+        ellipse(d, (hx0 - 3, hy0 + 20, hx0 + 5, hy0 + 30), shade(skin, -22))
+        # 볼터치
+        rect(d, eye_x[0] - 4, eye_y + face_y + 8, 4, 2, shade((236, 120, 120, 255), 0))
+        rect(d, eye_x[1] + 5, eye_y + face_y + 8, 4, 2, shade((236, 120, 120, 255), 0))
+        # 눈
+        ey = eye_y + face_y
+        for ex in eye_x:
+            if kind == "blink":
+                rect(d, ex - 1, ey + eye_h - 2, 5, 1, INK)
+            else:
+                rect(d, ex, ey, 3, eye_h, INK)
+                px(img, ex + 1, ey + 1, rgba(255, 255, 255))
+        if brows:
+            brows(d, img, face_y)
+        # 입
+        my = mouth_y + face_y
+        mx = (eye_x[0] + eye_x[1]) // 2 + 1
+        if kind == "talk":
+            ellipse(d, (mx - 3, my - 1, mx + 3, my + 3), rgba(120, 40, 50))
+            rect(d, mx - 1, my + 2, 3, 1, rgba(230, 110, 120))
+        else:
+            rect(d, mx - 2, my, 5, 1, shade(skin, -90))
+        if front:
+            front(d, img, face_y, kind)
+        frames.append(outline(img))
+    return sheet(frames)
+
+
+def make_portraits():
+    folder = OUT / "portraits"
+    folder.mkdir(parents=True, exist_ok=True)
+
+    # 👴 촌장 할아버지: 갈색 두건, 하얀 눈썹과 풍성한 수염
+    def elder_front(d, img, fy, kind):
+        hood = rgba(120, 84, 60)
+        d.pieslice((14, 6, 68, 56), 180, 360, fill=hood)
+        rect(d, 14, 30, 7, 30, hood)
+        rect(d, 62, 30, 6, 20, shade(hood, -20))
+        d.arc((14, 6, 68, 56), 200, 330, fill=shade(hood, 30))
+        # 수염 (입 아래로 풍성하게)
+        white = rgba(242, 240, 236)
+        d.polygon([(26, 50), (60, 50), (58, 66), (50, 80), (40, 82), (30, 72)], fill=white)
+        d.line([(34, 60), (38, 74)], fill=rgba(200, 200, 206))
+        d.line([(48, 60), (47, 76)], fill=rgba(200, 200, 206))
+        # 콧수염 (입 위)
+        ellipse(d, (32, 45, 42, 50), white)
+        ellipse(d, (42, 45, 54, 50), white)
+        # 입은 수염 사이로 보여요
+        if kind == "talk":
+            ellipse(d, (39, 50, 45, 55), rgba(120, 40, 50))
+        else:
+            rect(d, 39, 52, 6, 1, rgba(150, 100, 90))
+
+    def elder_brows(d, img, fy):
+        rect(d, 32, 34, 7, 2, rgba(242, 240, 236))
+        rect(d, 46, 34, 7, 2, rgba(242, 240, 236))
+
+    def elder_clothes(d, img, fy):
+        # 지팡이 끝이 어깨 옆으로 보여요
+        rect(d, 68, 58, 4, 40, rgba(150, 110, 70))
+        ellipse(d, (65, 52, 75, 62), rgba(170, 128, 84))
+
+    portrait(rgba(236, 200, 170), rgba(150, 110, 80), front=elder_front, brows=elder_brows,
+             clothes=elder_clothes, mouth_y=52).save(folder / "elder.png")
+
+    # 🔨 대장장이 브론: 짧은 검은 머리, 빨간 머리띠, 주황 앞치마, 굵은 눈썹
+    def smith_back(d, img, fy):
+        ellipse(d, (18, 8, 64, 40), rgba(50, 40, 40))
+
+    def smith_front(d, img, fy, kind):
+        hair = rgba(50, 40, 40)
+        d.chord((20, 10, 62, 44), 190, 350, fill=hair)
+        rect(d, 20, 22, 42, 5, rgba(200, 60, 50))
+        rect(d, 20, 26, 42, 1, rgba(150, 40, 40))
+        # 머리띠 매듭
+        rect(d, 14, 20, 6, 4, rgba(200, 60, 50))
+        rect(d, 12, 24, 4, 6, rgba(170, 50, 44))
+        # 턱수염 (까칠)
+        for x in range(30, 56, 3):
+            px(img, x, 56, shade(hair, 40))
+            px(img, x + 1, 58, shade(hair, 40))
+
+    def smith_brows(d, img, fy):
+        rect(d, 31, 34, 8, 3, rgba(50, 40, 40))
+        rect(d, 46, 34, 8, 3, rgba(50, 40, 40))
+
+    def smith_clothes(d, img, fy):
+        apron = rgba(230, 140, 60)
+        rect(d, 26, 72, 32, 30, apron)
+        rect(d, 26, 72, 4, 30, shade(apron, -30))
+        d.line([(28, 72), (22, 64)], fill=apron, width=3)
+        d.line([(56, 72), (60, 64)], fill=apron, width=3)
+        # 어깨에 멘 망치
+        d.line([(62, 92), (72, 52)], fill=rgba(120, 90, 60), width=3)
+        rect(d, 64, 44, 14, 10, rgba(150, 150, 160))
+        rect(d, 64, 44, 14, 2, rgba(200, 200, 210))
+
+    portrait(rgba(210, 160, 120), rgba(90, 80, 80), back=smith_back, front=smith_front,
+             brows=smith_brows, clothes=smith_clothes, head=(18, 14, 64, 62)).save(folder / "smith.png")
+
+    # 🌿 약초상 리나: 긴 갈색 머리, 잎사귀 달린 초록 모자, 꽃
+    def herb_back(d, img, fy):
+        hair = rgba(150, 84, 54)
+        d.rounded_rectangle((14, 18, 66, 84), radius=14, fill=hair)
+        d.rounded_rectangle((14, 18, 26, 84), radius=8, fill=shade(hair, -30))
+
+    def herb_front(d, img, fy, kind):
+        hair = rgba(150, 84, 54)
+        # 앞머리
+        d.chord((22, 14, 62, 40), 180, 360, fill=hair)
+        d.polygon([(40, 24), (48, 24), (44, 32)], fill=hair)
+        # 모자
+        hat = rgba(80, 150, 90)
+        d.pieslice((12, 0, 70, 40), 180, 360, fill=hat)
+        rect(d, 8, 18, 66, 4, shade(hat, -20))
+        d.line([(46, 2), (56, -6)], fill=rgba(140, 210, 110), width=3)
+        ellipse(d, (54, 0, 64, 8), rgba(140, 210, 110))
+        # 머리에 꽂은 꽃
+        for dx, dy in ((0, -3), (3, 0), (0, 3), (-3, 0)):
+            ellipse(d, (62 + dx - 2, 24 + dy - 2, 62 + dx + 2, 24 + dy + 2), rgba(236, 110, 140))
+        px(img, 62, 24, rgba(255, 230, 120))
+
+    def herb_clothes(d, img, fy):
+        # 목걸이 잎사귀
+        d.line([(34, 70), (42, 78), (50, 70)], fill=rgba(80, 60, 50))
+        ellipse(d, (39, 76, 45, 84), rgba(140, 210, 110))
+
+    portrait(rgba(245, 214, 190), rgba(110, 160, 120), back=herb_back, front=herb_front,
+             clothes=herb_clothes, eye_h=6).save(folder / "herbalist.png")
+
+    # 🧒 꼬마 피피: 기사를 따라한 노란 투구, 큰 눈
+    def kid_front(d, img, fy, kind):
+        helmet = rgba(250, 210, 90)
+        d.pieslice((18, 14 + fy, 64, 56 + fy), 180, 360, fill=helmet)
+        rect(d, 18, 33 + fy, 46, 3, shade(helmet, -40))
+        # 뿔
+        rect(d, 24, 4 + fy, 5, 14, helmet)
+        rect(d, 53, 4 + fy, 5, 14, helmet)
+        rect(d, 24, 4 + fy, 2, 14, shade(helmet, -30))
+        d.arc((18, 14 + fy, 64, 56 + fy), 200, 250, fill=rgba(255, 245, 200))
+
+    def kid_clothes(d, img, fy):
+        # 멜빵 단추
+        rect(d, 30, 80, 4, 4, rgba(250, 210, 90))
+        rect(d, 50, 80, 4, 4, rgba(250, 210, 90))
+
+    portrait(rgba(250, 226, 200), rgba(90, 170, 200), face_y=8, head=(20, 16, 62, 58), eye_y=36,
+             eye_h=7, mouth_y=48, front=kid_front, clothes=kid_clothes).save(folder / "kid.png")
+
+
+# ══════════════════════════════════════════════════════
 # 🧱 바닥 타일 (16×16, 가로 9칸 × 세로 3줄)
 #   줄: 0 숲(마을·1스테이지), 1 동굴(2스테이지), 2 둥지(3스테이지)
 #   칸: 0 윗면, 1 속, 2 왼쪽 위 모서리, 3 오른쪽 위 모서리, 4 왼쪽 벽, 5 오른쪽 벽,
@@ -807,6 +997,7 @@ if __name__ == "__main__":
     make_slash()
     make_enemies()
     make_villagers()
+    make_portraits()
     make_tiles()
     make_backgrounds()
     make_props()

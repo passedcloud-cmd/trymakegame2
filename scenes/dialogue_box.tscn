@@ -23,6 +23,11 @@ anti_aliasing = false
 layer = 10
 script = ExtResource("1_dialogue")
 
+[node name="Portrait" type="Sprite2D" parent="."]
+position = Vector2(12, 40)
+centered = false
+hframes = 3
+
 [node name="Panel" type="Panel" parent="."]
 offset_left = 8.0
 offset_top = 128.0
