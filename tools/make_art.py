@@ -82,12 +82,24 @@ EYE = rgba(18, 16, 28)
 STEEL = rgba(210, 222, 240)
 
 
+def draw_blade(d, blade, x0, y0):
+    """칼을 그려요. blade = ((손잡이 x, y), (칼끝 x, y))"""
+    (hx, hy), (tx, ty) = blade
+    d.line([(hx + x0, hy + y0), (tx + x0, ty + y0)], fill=STEEL)
+    rect(d, hx + x0 - 1, hy + y0 - 1, 2, 2, rgba(140, 110, 70))
+
+
 def knight(legs=((9, 20), (13, 20)), bob=0, lean=0, scarf="idle", eyes="normal",
-           sword=False, leg_h=3, stretch=False):
+           sword=False, leg_h=3, stretch=False, blade=None, blade_behind=False):
+    """blade: 칼을 원하는 방향으로 그려요. ((손잡이 x, y), (칼끝 x, y))
+    blade_behind: True면 칼을 몸 뒤에 그려요. (칼을 뒤로 치켜들 때)"""
     img = new(24, 24)
     d = ImageDraw.Draw(img)
     y0 = bob
     x0 = lean
+
+    if blade and blade_behind:
+        draw_blade(d, blade, x0, y0)
 
     # 목도리 꼬리 (몸 뒤쪽, 왼쪽으로 휘날려요)
     tails = {
@@ -135,6 +147,9 @@ def knight(legs=((9, 20), (13, 20)), bob=0, lean=0, scarf="idle", eyes="normal",
     elif eyes == "up":
         rect(d, 11 + hx, 5 + y0, 2, 3, EYE)
         rect(d, 15 + hx, 5 + y0, 2, 3, EYE)
+    elif eyes == "down":
+        rect(d, 11 + hx, 8 + y0, 2, 3, EYE)
+        rect(d, 15 + hx, 8 + y0, 2, 3, EYE)
 
     # 목도리 (목에 두른 부분)
     rect(d, 8 + x0, 12 + y0, 9, 2, SCARF)
@@ -144,6 +159,8 @@ def knight(legs=((9, 20), (13, 20)), bob=0, lean=0, scarf="idle", eyes="normal",
     if sword:
         d.line([(15 + x0, 15 + y0), (23, 15 + y0)], fill=STEEL)
         rect(d, 14 + x0, 14 + y0, 2, 3, rgba(140, 110, 70))
+    if blade and not blade_behind:
+        draw_blade(d, blade, x0, y0)
     return outline(img)
 
 
@@ -161,6 +178,26 @@ def make_knight():
         knight(legs=((4, 18), (7, 19)), leg_h=2, scarf="long", stretch=True),  # 9 대시
         knight(legs=((8, 20), (14, 19)), lean=-1, eyes="hurt", scarf="up"),  # 10 맞음
         knight(eyes="up"),                                     # 11 위 보기
+        # ── 베기 동작: 방향마다 3장 (준비 → 휘두르기 → 마무리) ──
+        # 옆 베기: 12 준비 → 8 휘두르기(위의 공격 그림) → 13 마무리
+        knight(legs=((8, 20), (13, 20)), lean=-1, scarf="idle",
+               blade=((8, 13), (0, 8)), blade_behind=True),    # 12 옆 베기 준비 (칼을 뒤로 치켜듦)
+        knight(legs=((7, 20), (15, 20)), lean=1, scarf="run1",
+               blade=((15, 16), (22, 21))),                    # 13 옆 베기 마무리 (칼이 앞쪽 아래로)
+        # 위 베기: 14 준비 → 15 휘두르기 → 16 마무리
+        knight(legs=((8, 21), (14, 21)), bob=1, leg_h=2, eyes="up", scarf="idle",
+               blade=((16, 17), (22, 20))),                    # 14 위 베기 준비 (웅크리고 칼을 낮게)
+        knight(legs=((9, 20), (13, 20)), bob=-1, eyes="up", scarf="down",
+               blade=((19, 12), (19, 0))),                     # 15 위 베기 휘두르기 (칼이 하늘로)
+        knight(legs=((9, 20), (13, 20)), eyes="up", scarf="down",
+               blade=((11, 10), (2, 1)), blade_behind=True),   # 16 위 베기 마무리 (칼이 머리 뒤로)
+        # 아래 베기 (공중에서): 17 준비 → 18 휘두르기 → 19 마무리
+        knight(legs=((9, 18), (13, 18)), bob=-1, leg_h=2, scarf="down",
+               blade=((17, 12), (20, 1))),                     # 17 아래 베기 준비 (칼을 위로 치켜듦)
+        knight(legs=((6, 19), (16, 19)), leg_h=2, eyes="down", scarf="up",
+               blade=((12, 15), (12, 23))),                    # 18 아래 베기 휘두르기 (칼이 발밑으로)
+        knight(legs=((8, 19), (14, 19)), leg_h=2, eyes="down", scarf="up",
+               blade=((13, 15), (16, 23))),                    # 19 아래 베기 마무리
     ]
     sheet(frames).save(OUT / "knight.png")
 

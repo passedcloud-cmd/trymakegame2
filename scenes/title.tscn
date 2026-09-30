@@ -39,7 +39,7 @@ stretch_mode = 1
 [node name="Knight" type="Sprite2D" parent="."]
 position = Vector2(160, 144)
 texture = ExtResource("4_knight")
-hframes = 12
+hframes = 20
 
 [node name="UI" type="CanvasLayer" parent="."]
 

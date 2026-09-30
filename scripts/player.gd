@@ -59,6 +59,15 @@ const FRAME_ATTACK := 8
 const FRAME_DASH := 9
 const FRAME_HURT := 10
 const FRAME_LOOK_UP := 11
+# 베기 동작: 방향마다 3장 (준비 → 휘두르기 → 마무리)
+const FRAMES_ATTACK_SIDE := [12, FRAME_ATTACK, 13]
+const FRAMES_ATTACK_UP := [14, 15, 16]
+const FRAMES_ATTACK_DOWN := [17, 18, 19]
+## 베는 그림을 보여주는 전체 시간 (초)
+const ATTACK_POSE_TIME := 0.18
+## 준비 그림과 휘두르기 그림이 끝나는 시점 (초). 나머지 시간은 마무리 그림이에요.
+const ATTACK_WINDUP_END := 0.03
+const ATTACK_SWING_END := 0.11
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var attack_area: Area2D = $AttackArea
@@ -256,7 +265,7 @@ func update_ghosts(delta: float) -> void:
 func start_attack() -> void:
 	attack_cooldown_timer = attack_cooldown
 	attack_timer = attack_active_time
-	attack_pose_timer = 0.18
+	attack_pose_timer = ATTACK_POSE_TIME
 	hit_list.clear()
 	pogo_done = false
 	Sound.play("swipe")
@@ -492,7 +501,7 @@ func update_animation(delta: float) -> void:
 	elif is_dashing():
 		sprite.frame = FRAME_DASH
 	elif attack_pose_timer > 0.0:
-		sprite.frame = FRAME_ATTACK
+		sprite.frame = attack_frame()
 	elif not is_on_floor():
 		sprite.frame = FRAME_JUMP if velocity.y < 0.0 else FRAME_FALL
 	elif absf(velocity.x) > 10.0:
@@ -504,3 +513,18 @@ func update_animation(delta: float) -> void:
 
 	# 무적인 동안은 깜빡깜빡
 	sprite.visible = invincible_timer <= 0.0 or int(invincible_timer * 20.0) % 2 == 0
+
+
+# 베는 방향과 지난 시간에 맞는 그림 번호를 골라요.
+func attack_frame() -> int:
+	var frames: Array = FRAMES_ATTACK_SIDE
+	if attack_dir == Vector2.UP:
+		frames = FRAMES_ATTACK_UP
+	elif attack_dir == Vector2.DOWN:
+		frames = FRAMES_ATTACK_DOWN
+	var elapsed := ATTACK_POSE_TIME - attack_pose_timer
+	if elapsed < ATTACK_WINDUP_END:
+		return frames[0]
+	elif elapsed < ATTACK_SWING_END:
+		return frames[1]
+	return frames[2]
